@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"strconv"
@@ -53,7 +54,20 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	providers := []string{"aws", "gcp", "hetzner", "openstack", "scaleway", "vultr", "digitalocean", "packet", "metaldata", "cdrom"}
+	providers := []string{
+		"aws",
+		"gcp",
+		"hetzner",
+		"openstack",
+		"scaleway",
+		"vultr",
+		"digitalocean",
+		"packet",
+		"metaldata",
+		"cdrom",
+		"azure-imds",
+		"azure-ovf",
+	}
 	args := flag.Args()
 	if len(args) > 0 {
 		providers = args
@@ -78,6 +92,14 @@ func main() {
 			netProviders = append(netProviders, prv.NewDigitalOcean())
 		case p == "metaldata":
 			netProviders = append(netProviders, prv.NewMetalData())
+		case p == "azure-imds":
+			netProviders = append(netProviders, prv.NewAzureIMDS())
+		case p == "azure-ovf":
+			// TODO not every provider should create a separate http client
+			client := &http.Client{
+				Timeout: time.Second * 2,
+			}
+			netProviders = append(netProviders, prv.NewAzureOVF(client))
 		case p == "cdrom":
 			cdromProviders = prv.ListCDROMs()
 		case strings.HasPrefix(p, "file="):
