@@ -10,22 +10,8 @@ import (
 	"strings"
 	"syscall"
 
+	prv "github.com/davidcassany/linuxkit/pkg/metadata/providers"
 	log "github.com/sirupsen/logrus"
-)
-
-const (
-	// ConfigPath is where the data is extracted to
-	ConfigPath = "/run/config"
-
-	// Hostname is the filename in configPath where the hostname is stored
-	Hostname = "hostname"
-
-	// SSH is the path where sshd configuration from the provider is stored
-	SSH = "ssh"
-
-	// Standard AWS-compatible Metadata URLs
-	userDataURL = "http://169.254.169.254/latest/user-data"
-	metaDataURL = "http://169.254.169.254/latest/meta-data/"
 )
 
 var (
@@ -44,27 +30,14 @@ func (f *infoFormatter) Format(entry *log.Entry) ([]byte, error) {
 	return defaultLogFormatter.Format(entry)
 }
 
-// Provider is a generic interface for metadata/userdata providers.
-type Provider interface {
-	// String should return a unique name for the Provider
-	String() string
-
-	// Probe returns true if the provider was detected.
-	Probe() bool
-
-	// Extract user data. This may write some data, specific to a
-	// provider, to ConfigPath and should return the generic userdata.
-	Extract() ([]byte, error)
-}
-
 // netProviders is a list of Providers offering metadata/userdata over the network
-var netProviders []Provider
+var netProviders []prv.Provider
 
 // cdromProviders is a list of Providers offering metadata/userdata data via CDROM
-var cdromProviders []Provider
+var cdromProviders []prv.Provider
 
 // fileProviders is a list of Providers offering metadata/userdata in a file on the filesystem
-var fileProviders []Provider
+var fileProviders []prv.Provider
 
 func main() {
 	log.SetFormatter(new(infoFormatter))
@@ -86,37 +59,37 @@ func main() {
 	for _, p := range providers {
 		switch {
 		case p == "aws":
-			netProviders = append(netProviders, NewAWS())
+			netProviders = append(netProviders, prv.NewAWS())
 		case p == "gcp":
-			netProviders = append(netProviders, NewGCP())
+			netProviders = append(netProviders, prv.NewGCP())
 		case p == "hetzner":
-			netProviders = append(netProviders, NewHetzner())
+			netProviders = append(netProviders, prv.NewHetzner())
 		case p == "openstack":
-			netProviders = append(netProviders, NewOpenstack())
+			netProviders = append(netProviders, prv.NewOpenstack())
 		case p == "packet":
-			netProviders = append(netProviders, NewPacket())
+			netProviders = append(netProviders, prv.NewPacket())
 		case p == "scaleway":
-			netProviders = append(netProviders, NewScaleway())
+			netProviders = append(netProviders, prv.NewScaleway())
 		case p == "vultr":
-			netProviders = append(netProviders, NewVultr())
+			netProviders = append(netProviders, prv.NewVultr())
 		case p == "digitalocean":
-			netProviders = append(netProviders, NewDigitalOcean())
+			netProviders = append(netProviders, prv.NewDigitalOcean())
 		case p == "metaldata":
-			netProviders = append(netProviders, NewMetalData())
+			netProviders = append(netProviders, prv.NewMetalData())
 		case p == "cdrom":
-			cdromProviders = ListCDROMs()
+			cdromProviders = prv.ListCDROMs()
 		case strings.HasPrefix(p, "file="):
-			fileProviders = append(fileProviders, fileProvider(p[5:]))
+			fileProviders = append(fileProviders, prv.FileProvider(p[5:]))
 		default:
 			log.Fatalf("Unrecognised metadata provider: %s", p)
 		}
 	}
 
-	if err := os.MkdirAll(ConfigPath, 0755); err != nil {
-		log.Fatalf("Could not create %s: %s", ConfigPath, err)
+	if err := os.MkdirAll(prv.ConfigPath, 0755); err != nil {
+		log.Fatalf("Could not create %s: %s", prv.ConfigPath, err)
 	}
 
-	var p Provider
+	var p prv.Provider
 	var userdata []byte
 	var err error
 	found := false
@@ -160,20 +133,20 @@ func main() {
 		log.Printf("Error during metadata probe: %s", err)
 	}
 
-	err = ioutil.WriteFile(path.Join(ConfigPath, "provider"), []byte(p.String()), 0644)
+	err = ioutil.WriteFile(path.Join(prv.ConfigPath, "provider"), []byte(p.String()), 0644)
 	if err != nil {
 		log.Printf("Error writing metadata provider: %s", err)
 	}
 
 	if userdata != nil {
-		if err := processUserData(ConfigPath, userdata); err != nil {
+		if err := processUserData(prv.ConfigPath, userdata); err != nil {
 			log.Printf("Could not extract user data: %s", err)
 		}
 	}
 
 	// Handle setting the hostname as a special case. We want to
 	// do this early and don't really want another container for it.
-	hostname, err := ioutil.ReadFile(path.Join(ConfigPath, Hostname))
+	hostname, err := ioutil.ReadFile(path.Join(prv.ConfigPath, prv.Hostname))
 	if err == nil {
 		err := syscall.Sethostname(hostname)
 		if err != nil {
