@@ -53,6 +53,7 @@ func main() {
 
 	providers := []string{
 		"aws",
+		"azure",
 		"gcp",
 		"hetzner",
 		"openstack",
@@ -62,7 +63,6 @@ func main() {
 		"packet",
 		"metaldata",
 		"cdrom",
-		"azure",
 	}
 	args := flag.Args()
 	if len(args) > 0 {
@@ -72,6 +72,8 @@ func main() {
 		switch {
 		case p == "aws":
 			netProviders = append(netProviders, prv.NewAWS())
+		case p == "azure":
+			netProviders = append(netProviders, prv.NewAzure())
 		case p == "gcp":
 			netProviders = append(netProviders, prv.NewGCP())
 		case p == "hetzner":
@@ -88,8 +90,6 @@ func main() {
 			netProviders = append(netProviders, prv.NewDigitalOcean())
 		case p == "metaldata":
 			netProviders = append(netProviders, prv.NewMetalData())
-		case p == "azure":
-			netProviders = append(netProviders, prv.NewAzureIMDS())
 		case p == "cdrom":
 			cdromProviders = prv.ListCDROMs()
 		case strings.HasPrefix(p, "file="):
