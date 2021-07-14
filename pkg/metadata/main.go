@@ -51,7 +51,19 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	providers := []string{"aws", "gcp", "hetzner", "openstack", "scaleway", "vultr", "digitalocean", "packet", "metaldata", "cdrom"}
+	providers := []string{
+		"aws",
+		"azure",
+		"gcp",
+		"hetzner",
+		"openstack",
+		"scaleway",
+		"vultr",
+		"digitalocean",
+		"packet",
+		"metaldata",
+		"cdrom",
+	}
 	args := flag.Args()
 	if len(args) > 0 {
 		providers = args
@@ -60,6 +72,8 @@ func main() {
 		switch {
 		case p == "aws":
 			netProviders = append(netProviders, prv.NewAWS())
+		case p == "azure":
+			netProviders = append(netProviders, prv.NewAzure())
 		case p == "gcp":
 			netProviders = append(netProviders, prv.NewGCP())
 		case p == "hetzner":
